@@ -1,4 +1,6 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dataParser.dart';
@@ -216,13 +218,17 @@ class PatientFrontEnd extends StatefulWidget {
 }
 
 Future<String> process_audio() async {
-  http.Response Response = await http.get("http://127.0.0.1:5000/process_audio");
-  return Response.body;
+  // Uri uri = Uri(scheme:'http', host:'127.0.0.1', port: 5000, path:'/process_audio');
+  final Response = 
+  await dio.get('http://10.19.6.218:5000/process_audio');
+  print(Response.data);
+  return "fuck you";
 }
 
 class _PatientFrontEndState extends State<PatientFrontEnd> {
   PriorityRank? selectedOption; // To store the selected dropdown value
   bool requestSent = false;
+  String data = '';
 
   @override
   Widget build(BuildContext context) {
@@ -310,12 +316,12 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                       width:
                           10),
                   IconButton(
-                    onPressed: () async (
+                    onPressed: () async {
                       data = await process_audio();
                       setState(() {
-                        print(data)
-                      })
-                    ),
+                        print(data);
+                      });
+                    },
                     icon: const Icon(Icons.mic, size: 30),
                   ),
                 ],

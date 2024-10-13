@@ -233,6 +233,8 @@ class BedrockWrapper:
             printer('[DEBUG] Capturing Bedrocks response/bedrock_stream', 'debug')
             output_category = json.loads(response.get("body").read())
             print(output_category)
+            global category 
+            category = output_category
 
             # full_response = ""
             # for event in bedrock_stream:
@@ -384,7 +386,8 @@ class EventHandler(TranscriptResultStreamHandler):
                         last_speech = config['last_speech']
                         print(last_speech, flush=True)
                         aws_polly_tts(last_speech)
-                        os._exit(0)  # exit from a child process
+                        # os._exit(0)  # exit from a child process
+                        asyncio.close()
                     else:
                         input_text = ' '.join(EventHandler.text)
                         printer(f'\n[INFO] User input: {input_text}', 'info')
@@ -491,14 +494,17 @@ def process_audio():
         # For now, we'll just simulate the process
         device_id = 1  # You might want to handle this differently
         mic_stream = MicStream(device_id)
+        bedrock_wrapper = BedrockWrapper()
         
         # Run the transcription and Bedrock processing
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(mic_stream.basic_transcribe())
+        loop.run_until_complete(mic_stream.basic_transcribe())
         
+        print('we do get here')
         # Assuming the result is the category string
-        return jsonify({'category': result})
+        print(jsonify({'category': category}))
+        return jsonify({'category': category})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
