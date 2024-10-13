@@ -5,7 +5,7 @@ import time
 import pyaudio
 import sys
 import boto3
-import sounddevice
+import sounddevice as sd
 
 from concurrent.futures import ThreadPoolExecutor
 from amazon_transcribe.client import TranscribeStreamingClient
@@ -23,8 +23,9 @@ if model_id not in get_model_ids():
 
 api_request = api_request_list[model_id]
 config = {
-    'log_level': 'none',  # One of: info, debug, none
-    'last_speech': "If you have any other questions, please don't hesitate to ask. Have a great day!",
+    'log_level': 'debug',  # One of: info, debug, none
+    'first_speech': "What issues are you experiencing?",
+    'last_speech': "Your request has been received, a care practicioner will be with you shortly",
     'region': aws_region,
     'polly': {
         'Engine': 'neural',
@@ -42,12 +43,10 @@ config = {
     }
 }
 
-
 p = pyaudio.PyAudio()
 bedrock_runtime = boto3.client(service_name='bedrock-runtime', region_name=config['region'])
 polly = boto3.client('polly', region_name=config['region'])
 transcribe_streaming = TranscribeStreamingClient(region=config['region'])
-
 
 def printer(text, level):
     if config['log_level'] == 'info' and level == 'info':
@@ -55,10 +54,30 @@ def printer(text, level):
     elif config['log_level'] == 'debug' and level in ['info', 'debug']:
         print(text)
 
+def list_audio_devices():
+    print("\nAvailable audio input devices:")
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        if device['max_input_channels'] > 0:
+            print(f"{i}: {device['name']}")
+    return devices
+
+def get_audio_device():
+    devices = list_audio_devices()
+    while True:
+        try:
+            device_id = int(input("\nEnter the number of the audio input device you want to use: "))
+            if 0 <= device_id < len(devices) and devices[device_id]['max_input_channels'] > 0:
+                return device_id
+            else:
+                print("Invalid device number. Please try again.")
+        except ValueError:
+            print("Please enter a valid number.")
 
 class UserInputManager:
     shutdown_executor = False
     executor = None
+    user_ready = False
 
     @staticmethod
     def set_executor(executor):
@@ -85,8 +104,16 @@ class UserInputManager:
         return UserInputManager.shutdown_executor
 
 
-class BedrockModelsWrapper:
+    @staticmethod
+    def prompt_user_ready():
+        input("Press Enter when you're ready to start speaking...")
+        UserInputManager.user_ready = True
 
+    @staticmethod
+    def is_user_ready():
+        return UserInputManager.user_ready
+
+class BedrockModelsWrapper:
     @staticmethod
     def define_body(text):
         model_id = config['bedrock']['api_request']['modelId']
@@ -135,7 +162,6 @@ class BedrockModelsWrapper:
         printer(f'[DEBUG] {chunk_obj}', 'debug')
         return text
 
-
 def to_audio_generator(bedrock_stream):
     prefix = ''
 
@@ -160,9 +186,7 @@ def to_audio_generator(bedrock_stream):
 
         print('\n')
 
-
 class BedrockWrapper:
-
     def __init__(self):
         self.speaking = False
 
@@ -174,12 +198,25 @@ class BedrockWrapper:
         printer('[DEBUG] Bedrock generation started', 'debug')
         self.speaking = True
 
-        body = BedrockModelsWrapper.define_body(text)
+        prompt_data = f"""Categorize the following request into one of the four categorizes outlined between ##, outputting only the category name.
+        #
+        Emergency: This would pertain to things that would cause immediate danger to the maker of the request. Bleeding, difficulty breathing, or falling would
+        fall into this category
+        Pain: This would pertain to problems that cause the maker of the request to be in pain, but not anything life threatening. Things like soreness, rashes,
+        or sprains would fall into this category
+        Hygiene: This would include problems that don't cause any pain to the request maker but might cause a biohazard if left unchecked. Things like diaper changing,
+        catether change, or restroom needs would fall under this categtory.
+        Quality of Life: This would include all things that don't fall under the other 3 catagories.
+        #
+
+        Request: {text}
+        Category:"""
+        body = BedrockModelsWrapper.define_body(prompt_data)
         printer(f"[DEBUG] Request body: {body}", 'debug')
 
         try:
             body_json = json.dumps(body)
-            response = bedrock_runtime.invoke_model_with_response_stream(
+            response = bedrock_runtime.invoke_model(
                 body=body_json,
                 modelId=config['bedrock']['api_request']['modelId'],
                 accept=config['bedrock']['api_request']['accept'],
@@ -187,29 +224,29 @@ class BedrockWrapper:
             )
 
             printer('[DEBUG] Capturing Bedrocks response/bedrock_stream', 'debug')
-            bedrock_stream = response.get('body')
+            output_category = json.loads(response.get("body").read())
+            print(output_category)
 
-            audio_gen = to_audio_generator(bedrock_stream)
-            printer('[DEBUG] Created bedrock stream to audio generator', 'debug')
+            # full_response = ""
+            # for event in bedrock_stream:
+            #    chunk = BedrockModelsWrapper.get_stream_chunk(event)
+            #    if chunk:
+            #        text = BedrockModelsWrapper.get_stream_text(chunk)
+            #        full_response += text
 
-            reader = Reader()
-            for audio in audio_gen:
-                reader.read(audio)
-
-            reader.close()
+            #printer('[DEBUG] Bedrock response: ' + full_response, 'debug')
+            return output_category
 
         except Exception as e:
-            print(e)
-            time.sleep(2)
+            print(f"Error in Bedrock invocation: {e}")
+            return None
+
+        finally:
+            time.sleep(1)
             self.speaking = False
-
-        time.sleep(1)
-        self.speaking = False
-        printer('\n[DEBUG] Bedrock generation completed', 'debug')
-
+            printer('\n[DEBUG] Bedrock generation completed', 'debug')
 
 class Reader:
-
     def __init__(self):
         self.polly = boto3.client('polly', region_name=config['region'])
         self.audio = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
@@ -243,7 +280,6 @@ class Reader:
         self.audio.stop_stream()
         self.audio.close()
 
-
 def stream_data(stream):
     chunk = 1024
     if stream:
@@ -268,7 +304,6 @@ def stream_data(stream):
     else:
         # The stream passed in is empty
         pass
-
 
 def aws_polly_tts(polly_text):
     printer(f'[INTO] Character count: {len(polly_text)}', 'debug')
@@ -303,7 +338,6 @@ def aws_polly_tts(polly_text):
 
     read_byte_chunks(b''.join(byte_chunks))
 
-
 def read_byte_chunks(data):
     polly_stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
     polly_stream.write(data)
@@ -312,7 +346,6 @@ def read_byte_chunks(data):
     polly_stream.stop_stream()
     polly_stream.close()
     time.sleep(1)
-
 
 class EventHandler(TranscriptResultStreamHandler):
     text = []
@@ -327,8 +360,7 @@ class EventHandler(TranscriptResultStreamHandler):
     async def handle_transcript_event(self, transcript_event: TranscriptEvent):
         results = transcript_event.transcript.results
         print("Received transcript event")
-        if not self.bedrock_wrapper.is_speaking():
-
+        if UserInputManager.is_user_ready() and not self.bedrock_wrapper.is_speaking():
             if results:
                 for result in results:
                     EventHandler.sample_count = 0
@@ -353,7 +385,8 @@ class EventHandler(TranscriptResultStreamHandler):
                         executor = ThreadPoolExecutor(max_workers=1)
                         # Add executor so Bedrock execution can be shut down, if user input signals so.
                         UserInputManager.set_executor(executor)
-                        loop.run_in_executor(
+                        loop = asyncio.get_event_loop()
+                        response = await loop.run_in_executor(
                             executor,
                             self.bedrock_wrapper.invoke_bedrock,
                             input_text
@@ -362,8 +395,9 @@ class EventHandler(TranscriptResultStreamHandler):
                     EventHandler.text.clear()
                     EventHandler.sample_count = 0
 
-
 class MicStream:
+    def __init__(self, device_id):
+        self.device_id = device_id
 
     async def mic_stream(self):
         loop = asyncio.get_event_loop()
@@ -372,8 +406,8 @@ class MicStream:
         def callback(indata, frame_count, time_info, status):
             loop.call_soon_threadsafe(input_queue.put_nowait, (bytes(indata), status))
 
-        stream = sounddevice.RawInputStream(
-            device=4, channels=1, samplerate=48000, callback=callback, blocksize=2048 * 2, dtype="int16")
+        stream = sd.RawInputStream(
+            device=self.device_id, channels=1, samplerate=48000, callback=callback, blocksize=2048 * 2, dtype="int16")
         with stream:
             while True:
                 indata, status = await input_queue.get()
@@ -387,21 +421,45 @@ class MicStream:
 
     async def basic_transcribe(self):
         print("Starting transcription...")
+        loop = asyncio.get_event_loop()
         loop.run_in_executor(ThreadPoolExecutor(max_workers=1), UserInputManager.start_user_input_loop)
-        print("finished the loop")
+        print("User input  loop started")
 
-        stream = await transcribe_streaming.start_stream_transcription(
-            language_code="en-US",
-            media_sample_rate_hz=16000,
-            media_encoding="pcm",
-        )
-        print("finished the loop")
+        first_speech = config['first_speech']
+        aws_polly_tts(first_speech)
 
-        handler = EventHandler(stream.output_stream, BedrockWrapper())
-        print("finished the loop")
-        await asyncio.gather(self.write_chunks(stream), handler.handle_events())
-        print("finished the loop")
+        # Prompt the user to indicate when they're ready to speak
+        loop.run_in_executor(ThreadPoolExecutor(max_workers=1), UserInputManager.prompt_user_ready)
+        
+        while not UserInputManager.is_user_ready():
+            await asyncio.sleep(0.1)
 
+        print("User is ready. Starting transcription...")
+
+        try:
+            stream = await transcribe_streaming.start_stream_transcription(
+                language_code="en-US",
+                media_sample_rate_hz=48000,
+                media_encoding="pcm",
+            )
+            print("Transcription stream started")
+
+            handler = EventHandler(stream.output_stream, BedrockWrapper())
+            print("Event handler created")
+
+            await asyncio.gather(self.write_chunks(stream), handler.handle_events())
+        except Exception as e:
+            print(e)
+            time.sleep(2)
+            self.speaking = False
+            return None
+
+        finally:
+            time.sleep(1)
+            self.speaking = False
+            print('\n[DEBUG] Bedrock generation completed')
+
+# ... (rest of the code remains unchanged)
 
 info_text = f'''
 *************************************************************
@@ -419,9 +477,12 @@ info_text = f'''
 '''
 print(info_text)
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-try:
-    loop.run_until_complete(MicStream().basic_transcribe())
-except (KeyboardInterrupt, Exception) as e:
-    print()
+if __name__ == "__main__":
+    device_id = get_audio_device()
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(MicStream(device_id).basic_transcribe())
+    except (KeyboardInterrupt, Exception) as e:
+        print(f"An error occurred: {e}")
+    finally:
+        loop.close()
