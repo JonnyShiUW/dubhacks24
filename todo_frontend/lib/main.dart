@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dataParser.dart';
+import 'package:http/http.dart' as http;
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
 
@@ -214,6 +215,11 @@ class PatientFrontEnd extends StatefulWidget {
   _PatientFrontEndState createState() => _PatientFrontEndState();
 }
 
+Future<String> process_audio() async {
+  http.Response Response = await http.get("http://127.0.0.1:5000/process_audio");
+  return Response.body;
+}
+
 class _PatientFrontEndState extends State<PatientFrontEnd> {
   PriorityRank? selectedOption; // To store the selected dropdown value
   bool requestSent = false;
@@ -304,12 +310,12 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                       width:
                           10),
                   IconButton(
-                    onPressed: () {
-                      // TODO: Microphone listening functionality here
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Microphone pressed')),
-                      );
-                    },
+                    onPressed: () async (
+                      data = await process_audio();
+                      setState(() {
+                        print(data)
+                      })
+                    ),
                     icon: const Icon(Icons.mic, size: 30),
                   ),
                 ],
