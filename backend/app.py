@@ -170,6 +170,7 @@ class BedrockWrapper:
         return self.speaking
 
     def invoke_bedrock(self, text):
+        print("Invoking Bedrock")
         printer('[DEBUG] Bedrock generation started', 'debug')
         self.speaking = True
 
@@ -215,6 +216,7 @@ class Reader:
         self.chunk = 1024
 
     def read(self, data):
+        print("Reading audio chunk")
         response = self.polly.synthesize_speech(
             Text=data,
             Engine=config['polly']['Engine'],
@@ -324,6 +326,7 @@ class EventHandler(TranscriptResultStreamHandler):
 
     async def handle_transcript_event(self, transcript_event: TranscriptEvent):
         results = transcript_event.transcript.results
+        print("Received transcript event")
         if not self.bedrock_wrapper.is_speaking():
 
             if results:
@@ -383,6 +386,7 @@ class MicStream:
         await stream.input_stream.end_stream()
 
     async def basic_transcribe(self):
+        print("Starting transcription...")
         loop.run_in_executor(ThreadPoolExecutor(max_workers=1), UserInputManager.start_user_input_loop)
 
         stream = await transcribe_streaming.start_stream_transcription(
@@ -411,7 +415,8 @@ info_text = f'''
 '''
 print(info_text)
 
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 try:
     loop.run_until_complete(MicStream().basic_transcribe())
 except (KeyboardInterrupt, Exception) as e:
