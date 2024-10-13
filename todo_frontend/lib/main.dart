@@ -165,78 +165,105 @@ class PatientFrontEnd extends StatefulWidget {
 
 class _PatientFrontEndState extends State<PatientFrontEnd> {
   PriorityRank? selectedOption; // To store the selected dropdown value
+  bool requestSent = false; 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Patient Frontend'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'What can I do for you today?',
-                style: TextStyle(fontSize: 24),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<PriorityRank>(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                    hint: const Text('Select an option'),
-                    value: selectedOption,
-                    items: [
-                      DropdownMenuItem(value: PriorityRank.Pain, child: Text(PriorityRank.Pain.nameOf)),
-                      DropdownMenuItem(value: PriorityRank.Hygiene, child: Text(PriorityRank.Hygiene.nameOf)),
-                      DropdownMenuItem(value: PriorityRank.Comfort, child: Text(PriorityRank.Comfort.nameOf)),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedOption = value; // Store the selected value
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10), // Add spacing between the dropdown and the mic icon
-                IconButton(
-                  onPressed: () {
-                    // Microphone listening functionality here
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Microphone pressed')),
-                    );
-                  },
-                  icon: const Icon(Icons.mic, size: 30),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (selectedOption != null) // Show submit button only if an option is selected
-              ElevatedButton(
-                onPressed: () {
-                  // Handle the submit action
-                  sendRequest();
-                },
-                child: const Text('Submit'),
-              ),
-          ],
+    if (requestSent) {
+      // If request has been sent, show the message
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Patient Frontend'),
         ),
-      ),
-    );
+        body: Center(
+          child: Text(
+            'Request sent, please wait',
+            style: TextStyle(fontSize: 24),
+          ),
+        ),
+      );
+    } else {
+      // If request has not been sent, show the request form
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Patient Frontend'),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'What can I do for you today?',
+                  style: TextStyle(fontSize: 24),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<PriorityRank>(
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
+                      hint: const Text('Select an option'),
+                      value: selectedOption,
+                      items: [
+                        DropdownMenuItem(
+                            value: PriorityRank.Pain,
+                            child: Text(PriorityRank.Pain.nameOf)),
+                        DropdownMenuItem(
+                            value: PriorityRank.Hygiene,
+                            child: Text(PriorityRank.Hygiene.nameOf)),
+                        DropdownMenuItem(
+                            value: PriorityRank.Comfort,
+                            child: Text(PriorityRank.Comfort.nameOf)),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedOption = value; // Store the selected value
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(
+                      width: 10), // Add spacing between the dropdown and the mic icon
+                  IconButton(
+                    onPressed: () {
+                      // Microphone listening functionality here
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Microphone pressed')),
+                      );
+                    },
+                    icon: const Icon(Icons.mic, size: 30),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (selectedOption != null)
+                // Show submit button only if an option is selected
+                ElevatedButton(
+                  onPressed: () {
+                    // Handle the submit action
+                    sendRequest();
+                  },
+                  child: const Text('Submit'),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
   }
-
-  void sendRequest() {
+    void sendRequest() {
     if (selectedOption != null) {
       queue.add((currId, PatientData(selectedOption as PriorityRank, "temp desc", DateTime.now(), "John Doe", 69)));
       currId++;
+      setState(() {
+        requestSent = true;
+      });
     }
   }
 }
