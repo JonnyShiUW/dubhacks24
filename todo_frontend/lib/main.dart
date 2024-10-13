@@ -7,6 +7,9 @@ import 'package:dio/dio.dart';
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
 
+var currId = 0;
+var queue = <(int, PatientData)>[];
+
 // Main: This is the entry point for your Flutter app
 void main() {
   runApp(BaseApp());
@@ -47,16 +50,17 @@ class ToDoApp extends StatelessWidget {
         children:[
           const Text('Login'),
           ElevatedButton(onPressed: (){
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => PatientFrontEnd())
-            }, 
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PatientFrontEnd())
+              );
+            },
             child: const Text('Patient')
           ),
           ElevatedButton(onPressed: (){
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NurseFrontend())
+                MaterialPageRoute(builder: (context) => NurseFrontend())
               );
             },
             child: const Text('Nurse')
@@ -68,38 +72,25 @@ class ToDoApp extends StatelessWidget {
 }
 
 class NurseFrontend extends StatefulWidget {
-  const NurseFrontend({super.key});
 
   @override
   State<NurseFrontend> createState() => _NurseFrontend();
 }
 
+
 class _NurseFrontend extends State<NurseFrontend> {
-  var currId = 0;
-  var queue = <(int, ExpansionTile)>[];
 
   @override
   Widget build(BuildContext context) {
-
     // on empty
-    if(queue.isEmpty) {
+    if (queue.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Queue')),
         body: Column(
           children: [
             const Center(child: Text("No items in queue")),
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
-                  currId++;
-                });
-              },
-              icon: const Icon(Icons.add),
-              label: const Text("Add")
-            )
-          ]
-        )
+          ],
+        ),
       );
     }
 
@@ -108,41 +99,44 @@ class _NurseFrontend extends State<NurseFrontend> {
       appBar: AppBar(title: const Text('Queue')),
       body: Column(
         children: <Widget>[
-          for(var tile in queue)
-            tile.$2,
-          ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
-                currId++;
-              });
-            },
-            icon: const Icon(Icons.add),
-            label: const Text("Add")
-          )
+          for (var tile in queue) 
+            createTile('${tile.$2.name} Room ${tile.$2.room}', tile.$2.prio.nameOf, [tile.$2.time.toString(), tile.$2.desc], tile.$1)
         ],
-      )
+      ),
     );
   }
 
-  (int, ExpansionTile) createTile(String title, String subtitle, properties, currentId) {
-  return (currentId, ExpansionTile(
-    title: Text(title),
-    subtitle: Text(subtitle),
-    children: [
-      for (String s in properties)
-        ListTile(title: Text(s)),
-      ElevatedButton(
-        onPressed: () {
-          setState(() {
-            queue.removeWhere((element) => element.$1 == currentId);
-          });
-        },
-        child: const Text("Delete")
-      )
-    ]
-  ));
+  ExpansionTile createTile(String title, String subtitle, List<String> properties, int currentId) {
+    return ExpansionTile(
+      title: Text(title),
+      subtitle: Text(subtitle),
+      children: [
+        for (String s in properties) ListTile(title: Text(s)),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              queue.removeWhere((element) => element.$1 == currentId);
+            });
+          },
+          child: const Text("Delete"),
+        )
+      ],
+    );
+  }
 }
+
+class PatientData {
+  PriorityRank prio;
+  String desc;
+  DateTime time;
+  String name;
+  int room;
+
+  PatientData(this.prio, this.desc, this.time, this.name, this.room);
+}
+
+void stateHasChanged() {
+
 }
 
 // A new page that says 'Hello World'
@@ -201,9 +195,9 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                     hint: const Text('Select an option'),
                     value: selectedOption,
                     items: [
-                      DropdownMenuItem(value: PriorityRank.Pain, child: Text(PriorityRank.Pain.valueOf)),
-                      DropdownMenuItem(value: PriorityRank.Hygiene, child: Text(PriorityRank.Hygiene.valueOf)),
-                      DropdownMenuItem(value: PriorityRank.Comfort, child: Text(PriorityRank.Comfort.valueOf)),
+                      DropdownMenuItem(value: PriorityRank.Pain, child: Text(PriorityRank.Pain.nameOf)),
+                      DropdownMenuItem(value: PriorityRank.Hygiene, child: Text(PriorityRank.Hygiene.nameOf)),
+                      DropdownMenuItem(value: PriorityRank.Comfort, child: Text(PriorityRank.Comfort.nameOf)),
                     ],
                     onChanged: (value) {
                       setState(() {
@@ -229,9 +223,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
               ElevatedButton(
                 onPressed: () {
                   // Handle the submit action
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('You selected: $selectedOption')),
-                  );
+                  sendRequest();
                 },
                 child: const Text('Submit'),
               ),
@@ -240,12 +232,34 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       ),
     );
   }
+
+  void sendRequest() {
+    if (selectedOption != null) {
+      queue.add((currId, PatientData(selectedOption as PriorityRank, "temp desc", DateTime.now(), "John Doe", 69)));
+      currId++;
+    }
+  }
 }
 
+// lower number = higher priority
 enum PriorityRank {
-  Pain,
-  Hygiene,
-  Comfort;
+  Pain(1),
+  Hygiene(2),
+  Comfort(3);
 
-  String get valueOf => '$name';
+  String get nameOf {
+    switch(this) {
+      case PriorityRank.Pain:
+        return 'Pain';
+      case PriorityRank.Hygiene:
+        return 'Hygiene / Cleaning';
+      case PriorityRank.Comfort:
+        return 'Comfort';
+      default:
+        throw ArgumentError('invalid argument');
+    }
+  }
+
+  const PriorityRank(this.prio);
+  final int prio;
 }
