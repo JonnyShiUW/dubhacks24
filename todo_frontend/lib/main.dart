@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'dataParser.dart';
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
 
@@ -50,9 +51,9 @@ class ToDoApp extends StatelessWidget {
         children:[
           const Text('Login'),
           ElevatedButton(onPressed: (){
-              Navigator.push(
+             Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => PatientFrontEnd())
+                MaterialPageRoute(builder: (context) => LoginScreen())
               );
             },
             child: const Text('Patient')
@@ -82,6 +83,7 @@ class _NurseFrontend extends State<NurseFrontend> {
 
   @override
   Widget build(BuildContext context) {
+    queue.sort((a, b) => a.$2.prio.prio.compareTo(b.$2.prio.prio) != 0 ? a.$2.prio.prio.compareTo(b.$2.prio.prio) : a.$2.time.compareTo(b.$2.time));
     // on empty
     if (queue.isEmpty) {
       return Scaffold(
@@ -159,13 +161,16 @@ class UserPage extends StatelessWidget {
 
 // A new stateful page for the Patient Frontend
 class PatientFrontEnd extends StatefulWidget {
+  final User user;
+
+  PatientFrontEnd({required this.user});
   @override
   _PatientFrontEndState createState() => _PatientFrontEndState();
 }
 
 class _PatientFrontEndState extends State<PatientFrontEnd> {
   PriorityRank? selectedOption; // To store the selected dropdown value
-  bool requestSent = false; 
+  bool requestSent = false;
 
   @override
   Widget build(BuildContext context) {
@@ -176,9 +181,15 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
           title: const Text('Patient Frontend'),
         ),
         body: Center(
-          child: Text(
-            'Request sent, please wait',
-            style: TextStyle(fontSize: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Request sent, please wait',
+                style: TextStyle(fontSize: 24),
+              ),
+              SizedBox(height: 20),
+            ],
           ),
         ),
       );
@@ -193,6 +204,14 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Welcome, ${widget.user.name}.',
+                  style: TextStyle(fontSize: 24),
+                ),
+              ),
+              const SizedBox(height: 10),
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -229,7 +248,8 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                     ),
                   ),
                   const SizedBox(
-                      width: 10), // Add spacing between the dropdown and the mic icon
+                      width:
+                          10),
                   IconButton(
                     onPressed: () {
                       // Microphone listening functionality here
@@ -257,10 +277,21 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       );
     }
   }
-    void sendRequest() {
+
+  void sendRequest() {
     if (selectedOption != null) {
-      queue.add((currId, PatientData(selectedOption as PriorityRank, "temp desc", DateTime.now(), "John Doe", 69)));
+      queue.add((
+        currId,
+        PatientData(
+          selectedOption as PriorityRank,
+          "Request description",
+          DateTime.now(),
+          widget.user.name,
+          widget.user.room,
+        ),
+      ));
       currId++;
+
       setState(() {
         requestSent = true;
       });
@@ -289,4 +320,89 @@ enum PriorityRank {
 
   const PriorityRank(this.prio);
   final int prio;
+}
+
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  late Future<List<User>> _futureUsers;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureUsers = loadUserData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Patient Login')),
+      body: FutureBuilder<List<User>>(
+        future: _futureUsers,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            // While the future is loading, show a loading indicator
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            // If the future has an error, display it
+            return Center(child: Text('Error loading user data'));
+          } else {
+            // Once the future is complete, display the login form
+            List<User> users = snapshot.data!;
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(labelText: 'Username'),
+                  ),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      String username = _usernameController.text.trim();
+                      String password = _passwordController.text.trim();
+
+                      User? user;
+                      for (var u in users) {
+                        if (u.username == username && u.password == password) {
+                          user = u;
+                          break;
+                        }
+                      }
+
+                      if (user != null) {
+                        // Successful login
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PatientFrontEnd(user: user!),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Invalid username or password')),
+                        );
+                      }
+                    },
+                    child: const Text('Login'),
+                  ),
+                ],
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
 }
