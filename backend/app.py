@@ -373,7 +373,7 @@ class MicStream:
             loop.call_soon_threadsafe(input_queue.put_nowait, (bytes(indata), status))
 
         stream = sounddevice.RawInputStream(
-            channels=1, samplerate=16000, callback=callback, blocksize=2048 * 2, dtype="int16")
+            device=4, channels=1, samplerate=48000, callback=callback, blocksize=2048 * 2, dtype="int16")
         with stream:
             while True:
                 indata, status = await input_queue.get()
@@ -388,15 +388,19 @@ class MicStream:
     async def basic_transcribe(self):
         print("Starting transcription...")
         loop.run_in_executor(ThreadPoolExecutor(max_workers=1), UserInputManager.start_user_input_loop)
+        print("finished the loop")
 
         stream = await transcribe_streaming.start_stream_transcription(
             language_code="en-US",
             media_sample_rate_hz=16000,
             media_encoding="pcm",
         )
+        print("finished the loop")
 
         handler = EventHandler(stream.output_stream, BedrockWrapper())
+        print("finished the loop")
         await asyncio.gather(self.write_chunks(stream), handler.handle_events())
+        print("finished the loop")
 
 
 info_text = f'''
