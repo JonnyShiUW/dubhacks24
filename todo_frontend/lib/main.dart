@@ -1,10 +1,12 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dataParser.dart';
 import 'package:http/http.dart' as http;
+import 'package:pretty_json/pretty_json.dart';
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
 
@@ -48,6 +50,36 @@ enum PriorityRank {
 
   const PriorityRank(this.prio);
   final int prio;
+}
+
+class JsonPayload {
+  JsonPayload({
+    required this.category,
+  });
+
+  final JsonObj category;
+}
+
+class JsonObj {
+  JsonObj({
+    required this.inputTextTokenCount,
+    required this.results,
+  });
+
+  final int inputTextTokenCount;
+  final List<Results> results;
+}
+
+class Results {
+  Results({
+    required this.completionReason,
+    required this.outputText,
+    required this.tokenCount,
+  });
+
+  final String completionReason;
+  final String outputText;
+  final int tokenCount;
 }
 
 // Main: This is the entry point for your Flutter app
@@ -219,10 +251,18 @@ class PatientFrontEnd extends StatefulWidget {
 
 Future<String> process_audio() async {
   // Uri uri = Uri(scheme:'http', host:'127.0.0.1', port: 5000, path:'/process_audio');
-  final Response = 
-  await dio.get('http://10.19.6.218:5000/process_audio');
-  print(Response.data);
-  return "fuck you";
+  final Response = await dio.get('http://10.19.6.218:5000/process_audio');
+  final String parsedJson = prettyJson(Response.data);
+  if (parsedJson.contains('Emergency')) {
+    return "Emergency";
+  }
+  if (parsedJson.contains('Pain')) {
+    return "Pain";
+  }
+  if (parsedJson.contains('Hygiene')) {
+    return "Hygiene";
+  }
+  return "Quality of Life";
 }
 
 class _PatientFrontEndState extends State<PatientFrontEnd> {
@@ -318,8 +358,18 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                   IconButton(
                     onPressed: () async {
                       data = await process_audio();
+                      switch(data) {
+                        case 'Emergency':
+                          selectedOption = PriorityRank.urgent;
+                        case 'Pain':
+                          selectedOption = PriorityRank.pain;
+                        case 'Hygiene':
+                          selectedOption = PriorityRank.hygiene;
+                        default:
+                          selectedOption = PriorityRank.comfort;
+                      }
                       setState(() {
-                        print(data);
+                        sendRequest();
                       });
                     },
                     icon: const Icon(Icons.mic, size: 30),
