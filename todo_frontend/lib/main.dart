@@ -20,7 +20,7 @@ class BaseApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(title: const Text('Fuck you')),
+        appBar: AppBar(title: const Text('Vigil')),
         body: ToDoApp(),
       ),
     );
@@ -50,13 +50,99 @@ class ToDoApp extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => PatientFrontEnd())
-            );
-          }, child: const Text('Patient')),
-          ElevatedButton(onPressed: (){}, child: const Text('Nurse')),
+            }, 
+            child: const Text('Patient')
+          ),
+          ElevatedButton(onPressed: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NurseFrontend())
+              );
+            },
+            child: const Text('Nurse')
+          ),
         ]
       ),
     );
   }
+}
+
+class NurseFrontend extends StatefulWidget {
+  const NurseFrontend({super.key});
+
+  @override
+  State<NurseFrontend> createState() => _NurseFrontend();
+}
+
+class _NurseFrontend extends State<NurseFrontend> {
+  var currId = 0;
+  var queue = <(int, ExpansionTile)>[];
+
+  @override
+  Widget build(BuildContext context) {
+
+    // on empty
+    if(queue.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Queue')),
+        body: Column(
+          children: [
+            const Center(child: Text("No items in queue")),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+                  currId++;
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text("Add")
+            )
+          ]
+        )
+      );
+    }
+
+    // on not empty
+    return Scaffold(
+      appBar: AppBar(title: const Text('Queue')),
+      body: Column(
+        children: <Widget>[
+          for(var tile in queue)
+            tile.$2,
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+                currId++;
+              });
+            },
+            icon: const Icon(Icons.add),
+            label: const Text("Add")
+          )
+        ],
+      )
+    );
+  }
+
+  (int, ExpansionTile) createTile(String title, String subtitle, properties, currentId) {
+  return (currentId, ExpansionTile(
+    title: Text(title),
+    subtitle: Text(subtitle),
+    children: [
+      for (String s in properties)
+        ListTile(title: Text(s)),
+      ElevatedButton(
+        onPressed: () {
+          setState(() {
+            queue.removeWhere((element) => element.$1 == currentId);
+          });
+        },
+        child: const Text("Delete")
+      )
+    ]
+  ));
+}
 }
 
 // A new page that says 'Hello World'
