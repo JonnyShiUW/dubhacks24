@@ -1,4 +1,4 @@
-Created by Yanni Hou, Jonathan Shi, & Prisha Patil (?). Dubhacks 2024.
+Created by Yanni Hou, Jonathan Shi, & Prisha Patel. Dubhacks 2024.
 
 
 
