@@ -60,7 +60,7 @@ class BaseApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(title: const Text('Vigil')),
+        //appBar: AppBar(title: const Text('Vigil')),
         body: ToDoApp(),
       ),
     );
@@ -77,6 +77,8 @@ class ToDoApp extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children:[
+          SizedBox(width:200, height:200, child: Image(image: AssetImage('resources/vigil_logo.png'))),
+          SizedBox(height:30),
           SizedBox(
             width: 200,
             height: 50,
@@ -131,7 +133,7 @@ class _NurseFrontend extends State<NurseFrontend> {
     // queue is empty
     if (queue.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Queue')),
+        appBar: AppBar(centerTitle: true, title: const Text('Queue')),
         body: Column(
           children: [
             const Center(child: Text("No items in queue")),
@@ -223,7 +225,8 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       // If request has been sent, show message sent screen
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Patient Frontend'),
+          centerTitle: true,
+          title: const Text('Request Center'),
         ),
         body: Center(
           child: Column(
@@ -242,7 +245,8 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       // If request has not been sent, show the request form
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Patient Frontend'),
+          centerTitle: true,
+          title: const Text('Request Center'),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
