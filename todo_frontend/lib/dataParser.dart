@@ -38,3 +38,21 @@ Future<List<User>> loadUserData() async {
     throw e; // Re-throw the error to be caught in the FutureBuilder
   }
 }
+
+Future<List<(int, String)>> loadPatientNotes() async {
+  try {
+    final data = await rootBundle.loadString('data/patientnotes.txt');
+    List<(int, String)> ret = [];
+    List<String> split = data.split('\n');
+    
+    for(String s in split) {
+      List<String> ssplit = s.split(',');
+      ret.add((int.parse(ssplit[0]), ssplit[1]));
+    }
+
+    return ret;
+  } catch (e) {
+    print('Error loading user data: $e');
+    rethrow; // Re-throw the error to be caught in the FutureBuilder
+  }
+}

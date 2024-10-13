@@ -7,9 +7,44 @@ import 'package:dio/dio.dart';
 import 'dataParser.dart';
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
-
 var currId = 0;
 var queue = <(int, PatientData)>[];
+
+class PatientData {
+  PriorityRank prio;
+  String desc;
+  DateTime time;
+  String name;
+  int room;
+
+  PatientData(this.prio, this.desc, this.time, this.name, this.room);
+}
+
+// lower number = higher priority
+enum PriorityRank {
+  Urgent(0),
+  Pain(1),
+  Hygiene(2),
+  Comfort(3);
+
+  String get nameOf {
+    switch(this) {
+      case PriorityRank.Urgent:
+        return 'Urgent / Emergency';
+      case PriorityRank.Pain:
+        return 'Pain';
+      case PriorityRank.Hygiene:
+        return 'Hygiene / Cleaning';
+      case PriorityRank.Comfort:
+        return 'Comfort / Lifestyle';
+      default:
+        throw ArgumentError('invalid argument');
+    }
+  }
+
+  const PriorityRank(this.prio);
+  final int prio;
+}
 
 // Main: This is the entry point for your Flutter app
 void main() {
@@ -73,17 +108,24 @@ class ToDoApp extends StatelessWidget {
 }
 
 class NurseFrontend extends StatefulWidget {
-
   @override
   State<NurseFrontend> createState() => _NurseFrontend();
 }
 
 
 class _NurseFrontend extends State<NurseFrontend> {
+  late Future<List<(int, String)>> _patientData;
+
+  @override
+  void initState() {
+    super.initState();
+    _patientData = loadPatientNotes();
+  }
 
   @override
   Widget build(BuildContext context) {
     queue.sort((a, b) => a.$2.prio.prio.compareTo(b.$2.prio.prio) != 0 ? a.$2.prio.prio.compareTo(b.$2.prio.prio) : a.$2.time.compareTo(b.$2.time));
+
     // on empty
     if (queue.isEmpty) {
       return Scaffold(
@@ -99,12 +141,26 @@ class _NurseFrontend extends State<NurseFrontend> {
     // on not empty
     return Scaffold(
       appBar: AppBar(title: const Text('Queue')),
-      body: Column(
-        children: <Widget>[
-          for (var tile in queue) 
-            createTile('${tile.$2.name} Room ${tile.$2.room}', tile.$2.prio.nameOf, [tile.$2.time.toString(), tile.$2.desc], tile.$1)
-        ],
-      ),
+      body: FutureBuilder(
+        future: _patientData,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            // While the future is loading, show a loading indicator
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            // If the future has an error, display it
+            return Center(child: Text('Error loading user data'));
+          } else {
+            List<(int, String)> patientData = snapshot.data!;
+            return Column(
+              children: <Widget>[
+                for (var tile in queue)
+                  createTile('${tile.$2.name} Room ${tile.$2.room}', tile.$2.prio.nameOf, ['${tile.$2.time.hour}:${tile.$2.time.minute}', getPatientDesc(tile.$2.room, patientData)], tile.$1)
+              ],
+            );
+          }
+        } 
+      )
     );
   }
 
@@ -125,39 +181,13 @@ class _NurseFrontend extends State<NurseFrontend> {
       ],
     );
   }
-}
 
-class PatientData {
-  PriorityRank prio;
-  String desc;
-  DateTime time;
-  String name;
-  int room;
+  String getPatientDesc(int roomNum, List<(int, String)> patData) {
 
-  PatientData(this.prio, this.desc, this.time, this.name, this.room);
-}
-
-void stateHasChanged() {
-
-}
-
-// A new page that says 'Hello World'
-class UserPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Page'),
-      ),
-      body: const Center(
-        child: Text(
-          'Hello World',
-          style: TextStyle(fontSize: 24),
-        ),
-      ),
-    );
+    return patData.firstWhere((a) => a.$1 == roomNum, orElse: () => (0, "No Patient Data Found")).$2;
   }
 }
+
 
 // A new stateful page for the Patient Frontend
 class PatientFrontEnd extends StatefulWidget {
@@ -174,6 +204,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
 
   @override
   Widget build(BuildContext context) {
+
     if (requestSent) {
       // If request has been sent, show the message
       return Scaffold(
@@ -230,6 +261,9 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                       hint: const Text('Select an option'),
                       value: selectedOption,
                       items: [
+                        DropdownMenuItem(
+                            value: PriorityRank.Urgent,
+                            child: Text(PriorityRank.Urgent.nameOf)),
                         DropdownMenuItem(
                             value: PriorityRank.Pain,
                             child: Text(PriorityRank.Pain.nameOf)),
@@ -297,29 +331,6 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       });
     }
   }
-}
-
-// lower number = higher priority
-enum PriorityRank {
-  Pain(1),
-  Hygiene(2),
-  Comfort(3);
-
-  String get nameOf {
-    switch(this) {
-      case PriorityRank.Pain:
-        return 'Pain';
-      case PriorityRank.Hygiene:
-        return 'Hygiene / Cleaning';
-      case PriorityRank.Comfort:
-        return 'Comfort';
-      default:
-        throw ArgumentError('invalid argument');
-    }
-  }
-
-  const PriorityRank(this.prio);
-  final int prio;
 }
 
 class LoginScreen extends StatefulWidget {
