@@ -82,6 +82,8 @@ class _NurseFrontend extends State<NurseFrontend> {
 
   @override
   Widget build(BuildContext context) {
+    queue.sort((a, b) => a.$2.prio.prio.compareTo(b.$2.prio.prio) != 0 ? a.$2.prio.prio.compareTo(b.$2.prio.prio) : a.$2.time.compareTo(b.$2.time));
+
     // on empty
     if (queue.isEmpty) {
       return Scaffold(
