@@ -18,8 +18,8 @@ class BaseApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(title: const Text('Fuck you')),
-        body: const NurseFrontend(),
+        appBar: AppBar(title: const Text('Vigil')),
+        body: ToDoApp(),
       ),
     );
   }
@@ -44,13 +44,15 @@ class ToDoApp extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children:[
           const Text('Login'),
-          ElevatedButton(onPressed: (){}, child: Text('Patient')),
+          ElevatedButton(onPressed: (){}, child: const Text('Patient')),
           ElevatedButton(onPressed: (){
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => NurseFrontend())
+                MaterialPageRoute(builder: (context) => const NurseFrontend())
               );
-            },             child: const Text('Nurse')),
+            },
+            child: const Text('Nurse')
+          ),
         ]
       ),
     );
@@ -73,39 +75,45 @@ class _NurseFrontend extends State<NurseFrontend> {
 
     // on empty
     if(queue.isEmpty) {
-      return Column(
-        children: [
-          const Center(child: Text("No items in queue")),
-          ElevatedButton.icon(
-          onPressed: () {
-            setState(() {
-              queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
-              currId++;
-            });
-          },
-          icon: const Icon(Icons.add),
-          label: const Text("Add")
+      return Scaffold(
+        appBar: AppBar(title: const Text('Queue')),
+        body: Column(
+          children: [
+            const Center(child: Text("No items in queue")),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+                  currId++;
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text("Add")
+            )
+          ]
         )
-        ]
       );
     }
 
     // on not empty
-    return Column(
-      children: <Widget>[
-        for(var tile in queue)
-          tile.$2,
-        ElevatedButton.icon(
-          onPressed: () {
-            setState(() {
-              queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
-              currId++;
-            });
-          },
-          icon: const Icon(Icons.add),
-          label: const Text("Add")
-        )
-      ],
+    return Scaffold(
+      appBar: AppBar(title: const Text('Queue')),
+      body: Column(
+        children: <Widget>[
+          for(var tile in queue)
+            tile.$2,
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+                currId++;
+              });
+            },
+            icon: const Icon(Icons.add),
+            label: const Text("Add")
+          )
+        ],
+      )
     );
   }
 
