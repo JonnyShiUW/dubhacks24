@@ -12,7 +12,14 @@ from amazon_transcribe.client import TranscribeStreamingClient
 from amazon_transcribe.handlers import TranscriptResultStreamHandler
 from amazon_transcribe.model import TranscriptEvent, TranscriptResultStream
 
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 from api_request_schema import api_request_list, get_model_ids
+
+app = Flask(__name__)
+CORS(app)
+
 
 model_id = os.getenv('MODEL_ID', 'amazon.titan-text-express-v1')
 aws_region = os.getenv('AWS_REGION', 'us-east-1')
@@ -226,6 +233,8 @@ class BedrockWrapper:
             printer('[DEBUG] Capturing Bedrocks response/bedrock_stream', 'debug')
             output_category = json.loads(response.get("body").read())
             print(output_category)
+            global category 
+            category = output_category
 
             # full_response = ""
             # for event in bedrock_stream:
@@ -377,7 +386,8 @@ class EventHandler(TranscriptResultStreamHandler):
                         last_speech = config['last_speech']
                         print(last_speech, flush=True)
                         aws_polly_tts(last_speech)
-                        os._exit(0)  # exit from a child process
+                        # os._exit(0)  # exit from a child process
+                        asyncio.close()
                     else:
                         input_text = ' '.join(EventHandler.text)
                         printer(f'\n[INFO] User input: {input_text}', 'info')
@@ -475,14 +485,37 @@ info_text = f'''
 [INFO] Go ahead with the voice chat with Amazon Bedrock!
 *************************************************************
 '''
-print(info_text)
+# print(info_text)
+
+@app.route('/process_audio', methods=['GET', 'POST'])
+def process_audio():
+    try:
+        # In a real-world scenario, you'd process the audio data sent from the client
+        # For now, we'll just simulate the process
+        device_id = 1  # You might want to handle this differently
+        mic_stream = MicStream(device_id)
+        bedrock_wrapper = BedrockWrapper()
+        
+        # Run the transcription and Bedrock processing
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(mic_stream.basic_transcribe())
+        
+        print('we do get here')
+        # Assuming the result is the category string
+        print(jsonify({'category': category}))
+        return jsonify({'category': category})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
-    device_id = get_audio_device()
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(MicStream(device_id).basic_transcribe())
-    except (KeyboardInterrupt, Exception) as e:
-        print(f"An error occurred: {e}")
-    finally:
-        loop.close()
+    # device_id = get_audio_device()
+    # loop = asyncio.get_event_loop()
+    # try:
+    #     loop.run_until_complete(MicStream(device_id).basic_transcribe())
+    # except (KeyboardInterrupt, Exception) as e:
+    #     print(f"An error occurred: {e}")
+    # finally:
+    #    loop.close()
+    print(info_text)
+    app.run(debug=True, host='0.0.0.0', port=5000)
