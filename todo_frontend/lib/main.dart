@@ -77,24 +77,34 @@ class ToDoApp extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children:[
-          const Text('Login'),
-          ElevatedButton(onPressed: () {
-              // navigate to login
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen())
-              );
-            },
-            child: const Text('Patient')
+          SizedBox(
+            width: 200,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () {
+                // navigate to login
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen())
+                );
+              },
+            child: const Text('Patient', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+            ),
           ),
-          ElevatedButton(onPressed: () {
-            // navigate to nurse frontend
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NurseFrontend())
-              );
-            },
-            child: const Text('Nurse')
+          SizedBox(height:10),
+          SizedBox(
+            width: 200,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () {
+                // navigate to nurse frontend
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NurseFrontend())
+                );
+              },
+              child: const Text('Nurse', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+            )
           ),
         ]
       ),
@@ -375,6 +385,7 @@ class _LoginScreenState extends State<LoginScreen> {
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextField(
                     controller: _usernameController,
