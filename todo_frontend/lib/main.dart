@@ -15,16 +15,12 @@ class BaseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<MyAppState>(
-      create: (BuildContext context) => MyAppState(),
-      child: MaterialApp(
-        title: 'Vigil',
-        theme: ThemeData(
-          useMaterial3:true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 189, 224, 255))
-        ),
-        home: ToDoApp(),
-      )
+    return MaterialApp(
+      theme: ThemeData(useMaterial3: true),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Fuck you')),
+        body: const NurseFrontend(),
+      ),
     );
   }
 }
@@ -49,10 +45,87 @@ class ToDoApp extends StatelessWidget {
         children:[
           const Text('Login'),
           ElevatedButton(onPressed: (){}, child: Text('Patient')),
-          ElevatedButton(onPressed: (){}, child: Text('Nurse')),
+          ElevatedButton(onPressed: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => NurseFrontend())
+              );
+            },             child: const Text('Nurse')),
         ]
       ),
     );
   }
+}
+
+class NurseFrontend extends StatefulWidget {
+  const NurseFrontend({super.key});
+
+  @override
+  State<NurseFrontend> createState() => _NurseFrontend();
+}
+
+class _NurseFrontend extends State<NurseFrontend> {
+  var currId = 0;
+  var queue = <(int, ExpansionTile)>[];
+
+  @override
+  Widget build(BuildContext context) {
+
+    // on empty
+    if(queue.isEmpty) {
+      return Column(
+        children: [
+          const Center(child: Text("No items in queue")),
+          ElevatedButton.icon(
+          onPressed: () {
+            setState(() {
+              queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+              currId++;
+            });
+          },
+          icon: const Icon(Icons.add),
+          label: const Text("Add")
+        )
+        ]
+      );
+    }
+
+    // on not empty
+    return Column(
+      children: <Widget>[
+        for(var tile in queue)
+          tile.$2,
+        ElevatedButton.icon(
+          onPressed: () {
+            setState(() {
+              queue.add(createTile("temp$currId", "temp$currId", ["temp$currId"], currId));
+              currId++;
+            });
+          },
+          icon: const Icon(Icons.add),
+          label: const Text("Add")
+        )
+      ],
+    );
+  }
+
+  (int, ExpansionTile) createTile(String title, String subtitle, properties, currentId) {
+  return (currentId, ExpansionTile(
+    title: Text(title),
+    subtitle: Text(subtitle),
+    children: [
+      for (String s in properties)
+        ListTile(title: Text(s)),
+      ElevatedButton(
+        onPressed: () {
+          setState(() {
+            queue.removeWhere((element) => element.$1 == currentId);
+          });
+        },
+        child: const Text("Delete")
+      )
+    ]
+  ));
+}
 }
 
