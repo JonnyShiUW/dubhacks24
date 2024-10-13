@@ -1,15 +1,15 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
-
-import 'dart:convert';
-import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dataParser.dart';
 // Dio is the api client we are using to make requests to the server
 final dio = Dio();
+
+// global variables
 var currId = 0;
 var queue = <(int, PatientData)>[];
 
+// class to keep track of patient requests
 class PatientData {
   PriorityRank prio;
   String desc;
@@ -22,20 +22,21 @@ class PatientData {
 
 // lower number = higher priority
 enum PriorityRank {
-  Urgent(0),
-  Pain(1),
-  Hygiene(2),
-  Comfort(3);
+  urgent(0),
+  pain(1),
+  hygiene(2),
+  comfort(3);
 
+  // user friendly names
   String get nameOf {
     switch(this) {
-      case PriorityRank.Urgent:
+      case PriorityRank.urgent:
         return 'Urgent / Emergency';
-      case PriorityRank.Pain:
+      case PriorityRank.pain:
         return 'Pain';
-      case PriorityRank.Hygiene:
+      case PriorityRank.hygiene:
         return 'Hygiene / Cleaning';
-      case PriorityRank.Comfort:
+      case PriorityRank.comfort:
         return 'Comfort / Lifestyle';
       default:
         throw ArgumentError('invalid argument');
@@ -51,7 +52,7 @@ void main() {
   runApp(BaseApp());
 }
 
-
+// home theme
 class BaseApp extends StatelessWidget {
 
   @override
@@ -66,34 +67,28 @@ class BaseApp extends StatelessWidget {
   }
 }
 
-class MyAppState extends ChangeNotifier {
-
-}
-
-// StatelessWidget is a widget that keep track of any state.
+// login page
 class ToDoApp extends StatelessWidget {
   //const ToDoApp({super.key});
 
-  // This method must be preset in every widget is is the
-  // thing that is rendered to the screen.
   @override
   Widget build(BuildContext context) {
-    // We are rendering a MaterialApp widget which
-    // has arguments like a title, a theme, and a home page
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children:[
           const Text('Login'),
-          ElevatedButton(onPressed: (){
-             Navigator.push(
+          ElevatedButton(onPressed: () {
+              // navigate to login
+              Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => LoginScreen())
               );
             },
             child: const Text('Patient')
           ),
-          ElevatedButton(onPressed: (){
+          ElevatedButton(onPressed: () {
+            // navigate to nurse frontend
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => NurseFrontend())
@@ -112,7 +107,6 @@ class NurseFrontend extends StatefulWidget {
   State<NurseFrontend> createState() => _NurseFrontend();
 }
 
-
 class _NurseFrontend extends State<NurseFrontend> {
   late Future<List<(int, String)>> _patientData;
 
@@ -124,9 +118,7 @@ class _NurseFrontend extends State<NurseFrontend> {
 
   @override
   Widget build(BuildContext context) {
-    queue.sort((a, b) => a.$2.prio.prio.compareTo(b.$2.prio.prio) != 0 ? a.$2.prio.prio.compareTo(b.$2.prio.prio) : a.$2.time.compareTo(b.$2.time));
-
-    // on empty
+    // queue is empty
     if (queue.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Queue')),
@@ -138,7 +130,8 @@ class _NurseFrontend extends State<NurseFrontend> {
       );
     }
 
-    // on not empty
+    // queue is not empty, sort patient request queue by higher priority, then earlier time
+    queue.sort((a, b) => a.$2.prio.prio.compareTo(b.$2.prio.prio) != 0 ? a.$2.prio.prio.compareTo(b.$2.prio.prio) : a.$2.time.compareTo(b.$2.time));
     return Scaffold(
       appBar: AppBar(title: const Text('Queue')),
       body: FutureBuilder(
@@ -154,8 +147,9 @@ class _NurseFrontend extends State<NurseFrontend> {
             List<(int, String)> patientData = snapshot.data!;
             return Column(
               children: <Widget>[
+                // build an expandable list for each request in queue
                 for (var tile in queue)
-                  createTile('${tile.$2.name} Room ${tile.$2.room}', tile.$2.prio.nameOf, ['${tile.$2.time.hour}:${tile.$2.time.minute}', getPatientDesc(tile.$2.room, patientData)], tile.$1)
+                  createTile('${tile.$2.name} Room ${tile.$2.room}', tile.$2.prio.nameOf, [getTime(tile.$2.time.hour, tile.$2.time.minute, tile.$2.time.second), getPatientDesc(tile.$2.room, patientData)], tile.$1)
               ],
             );
           }
@@ -164,6 +158,7 @@ class _NurseFrontend extends State<NurseFrontend> {
     );
   }
 
+  // helper method that creates and populates the exapandable lists
   ExpansionTile createTile(String title, String subtitle, List<String> properties, int currentId) {
     return ExpansionTile(
       title: Text(title),
@@ -172,6 +167,7 @@ class _NurseFrontend extends State<NurseFrontend> {
         for (String s in properties) ListTile(title: Text(s)),
         ElevatedButton(
           onPressed: () {
+            // map button press to delete the cooresponding request
             setState(() {
               queue.removeWhere((element) => element.$1 == currentId);
             });
@@ -182,18 +178,26 @@ class _NurseFrontend extends State<NurseFrontend> {
     );
   }
 
+  // helper method that gets patient description from room number
   String getPatientDesc(int roomNum, List<(int, String)> patData) {
-
     return patData.firstWhere((a) => a.$1 == roomNum, orElse: () => (0, "No Patient Data Found")).$2;
   }
-}
 
+  // helper method to display correct times
+  String getTime(int hours, int minutes, int seconds) {
+    String h = hours < 10 ? '0$hours' : hours.toString();
+    String m = minutes < 10 ? '0$minutes' : minutes.toString();
+    String s = seconds < 10 ? '0$seconds' : seconds.toString();
+
+    return '$h:$m:$s';
+  }
+}
 
 // A new stateful page for the Patient Frontend
 class PatientFrontEnd extends StatefulWidget {
   final User user;
 
-  PatientFrontEnd({required this.user});
+  const PatientFrontEnd({required this.user});
   @override
   _PatientFrontEndState createState() => _PatientFrontEndState();
 }
@@ -206,7 +210,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
   Widget build(BuildContext context) {
 
     if (requestSent) {
-      // If request has been sent, show the message
+      // If request has been sent, show message sent screen
       return Scaffold(
         appBar: AppBar(
           title: const Text('Patient Frontend'),
@@ -253,6 +257,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
               const SizedBox(height: 20),
               Row(
                 children: [
+                  // TODO: replace expanded w/ actionable text box that interacts with our AWS Bedrock integration
                   Expanded(
                     child: DropdownButtonFormField<PriorityRank>(
                       decoration: const InputDecoration(
@@ -262,17 +267,17 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                       value: selectedOption,
                       items: [
                         DropdownMenuItem(
-                            value: PriorityRank.Urgent,
-                            child: Text(PriorityRank.Urgent.nameOf)),
+                            value: PriorityRank.urgent,
+                            child: Text(PriorityRank.urgent.nameOf)),
                         DropdownMenuItem(
-                            value: PriorityRank.Pain,
-                            child: Text(PriorityRank.Pain.nameOf)),
+                            value: PriorityRank.pain,
+                            child: Text(PriorityRank.pain.nameOf)),
                         DropdownMenuItem(
-                            value: PriorityRank.Hygiene,
-                            child: Text(PriorityRank.Hygiene.nameOf)),
+                            value: PriorityRank.hygiene,
+                            child: Text(PriorityRank.hygiene.nameOf)),
                         DropdownMenuItem(
-                            value: PriorityRank.Comfort,
-                            child: Text(PriorityRank.Comfort.nameOf)),
+                            value: PriorityRank.comfort,
+                            child: Text(PriorityRank.comfort.nameOf)),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -286,7 +291,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
                           10),
                   IconButton(
                     onPressed: () {
-                      // Microphone listening functionality here
+                      // TODO: Microphone listening functionality here
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Microphone pressed')),
                       );
@@ -312,6 +317,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
     }
   }
 
+  // helper method to throw a request to the nurse queue
   void sendRequest() {
     if (selectedOption != null) {
       queue.add((
@@ -326,6 +332,7 @@ class _PatientFrontEndState extends State<PatientFrontEnd> {
       ));
       currId++;
 
+      // update this page's state
       setState(() {
         requestSent = true;
       });

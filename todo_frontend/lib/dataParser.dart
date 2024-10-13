@@ -14,6 +14,7 @@ class User {
   });
 }
 
+// really janky method to parse the CSV and get users/passwords. Would be replaced by a secure login function for a full program.
 Future<List<User>> loadUserData() async {
   try {
     final data = await rootBundle.loadString('data/userdata.txt');
@@ -39,6 +40,7 @@ Future<List<User>> loadUserData() async {
   }
 }
 
+// really janky method to parse the CSV and tie patient notes to room number
 Future<List<(int, String)>> loadPatientNotes() async {
   try {
     final data = await rootBundle.loadString('data/patientnotes.txt');
